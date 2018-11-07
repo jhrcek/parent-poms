@@ -1,0 +1,49 @@
+name:                parent-poms
+version:             0.1.0.0
+github:              "jhrcek/parent-poms"
+license:             BSD3
+author:              "Jan Hrček"
+maintainer:          "jhrcek@redhat.com"
+copyright:           "2018 Jan Hrček"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+description:         Please see the README on GitHub at <https://github.com/jhrcek/parent-poms#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- foldl
+- turtle
+- text
+- xml-conduit
+- xml-lens
+
+library:
+  source-dirs: src
+  ghc-options:
+    - -Wall
+
+executables:
+  parent-poms:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - parent-poms
+
+tests:
+  parent-poms-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - parent-poms
