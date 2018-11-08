@@ -4,8 +4,9 @@ module Pom
   ( analyzeProperties
   , getParentChains
   , showHierarchy
-  , ParentChain(..)
   , GAV(..)
+  , ImageFormat(..)
+  , ParentChain(..)
   ) where
 
 import qualified Data.Text as Text
@@ -58,12 +59,19 @@ Extracted from per-module output of `mvn dependency:display-ancestors` which loo
 -}
 newtype ParentChain = ParentChain [GAV] deriving Show
 
-showHierarchy :: [ParentChain] -> IO ()
-showHierarchy parentChains = do
-    shells "dot -Tpng -o hierarchy.png" $ select dotLines
-    shells "shotwell hierarchy.png" empty
+data ImageFormat
+    = PNG
+    | SVG
+
+showHierarchy :: ImageFormat -> [ParentChain]  -> IO ()
+showHierarchy imageFormat parentChains = do
+    shells ("dot -T" <> extension <> " -o hierarchy." <> extension) $ select dotLines
+    shells (viewer <> " hierarchy." <> extension) empty
   where
     dotLines = toDotSource parentChains
+    (extension, viewer) = case imageFormat of
+        PNG -> ("png", "shotwell")
+        SVG -> ("svg", "google-chrome")
 
 toDotSource :: [ParentChain] -> [Line]
 toDotSource parentChains =
