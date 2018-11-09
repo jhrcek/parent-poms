@@ -7,6 +7,7 @@ main :: IO ()
 main = do
     opts <- Options.parse
     let imageFormat = Options.imageFormat opts
+        userHome = Options.userHome opts
     parentChains <- Pom.getParentChains
-    Pom.analyzeProperties parentChains
+    Pom.analyzeProperties userHome parentChains
     Pom.showHierarchy imageFormat parentChains

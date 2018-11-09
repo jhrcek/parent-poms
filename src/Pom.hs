@@ -21,12 +21,12 @@ import Pom.Properties (readProperties)
 import Prelude hiding (FilePath)
 import Turtle (ExitCode, FilePath, Line, Shell, empty, exit, export, fold,
                format, fp, fromText, inshell, lineToText, repr, select, shells,
-               testfile, textToLine)
+               testfile, textToLine, (</>))
 
-analyzeProperties :: [ParentChain] -> IO ()
-analyzeProperties =
+analyzeProperties :: FilePath -> [ParentChain] -> IO ()
+analyzeProperties userHome parentChain =
   mapM_ (\gav -> do
-          let pomPath = toPomPath gav
+          let pomPath = toPomPath userHome gav
           Text.putStrLn $ "---------- " <> format fp pomPath
           exists <- testfile pomPath
           if exists
@@ -34,7 +34,7 @@ analyzeProperties =
               else putStrLn "pom does not exist"
         )
       . nub
-      . concatMap (\(ParentChain gavs) -> gavs)
+      $ concatMap (\(ParentChain gavs) -> gavs) parentChain
 
 data GAV = GAV
    { gavGroupId    :: Text
@@ -45,9 +45,9 @@ data GAV = GAV
 instance Show GAV where
   show (GAV g a v) = Text.unpack $ Text.intercalate ":" [g,a,v]
 
-toPomPath :: GAV -> FilePath
-toPomPath (GAV g a v) =
-    fromText $ Text.intercalate "/" ["/home/hrk/.m2/repository", Text.replace "." "/"  g, a, v, a <> "-" <> v <> ".pom"]
+toPomPath :: FilePath -> GAV -> FilePath
+toPomPath userHome (GAV g a v) =
+    userHome </> fromText (Text.intercalate "/" [".m2/repository", Text.replace "." "/"  g, a, v, a <> "-" <> v <> ".pom"])
 {-
 List of GAVs starting from module's own GAV, followed by list of its parents ending with the root
 Extracted from per-module output of `mvn dependency:display-ancestors` which looks like this:

@@ -5,13 +5,17 @@ module Options
     , Options
     , imageFormat
     , parse
+    , userHome
     ) where
 
 import Control.Applicative ((<|>))
+import Prelude hiding (FilePath)
+import Turtle (FilePath, home)
 import Turtle.Options (Parser, optRead, options)
 
-newtype Options = Options
-    { imageFormat :: ImageFormat
+data Options = Options
+    { userHome    :: FilePath
+    , imageFormat :: ImageFormat
     -- TODO maven profiles to enable when running maven command
     -- TODO Xmx for maven
     }
@@ -22,12 +26,13 @@ data ImageFormat
     deriving Read
 
 parse :: IO Options
-parse =
-    options "Maven Parent POM hierarchy analyzer" parser
+parse = do
+    homeDir <- home
+    options "Maven Parent POM hierarchy analyzer" $ parser homeDir
 
-parser :: Parser Options
-parser =
-    Options <$> imageFormatParser
+parser :: FilePath -> Parser Options
+parser homeDir =
+    Options homeDir <$> imageFormatParser
 
 imageFormatParser :: Parser ImageFormat
 imageFormatParser =
