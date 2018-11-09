@@ -5,21 +5,23 @@ module Pom
   , getParentChains
   , showHierarchy
   , GAV(..)
-  , ImageFormat(..)
   , ParentChain(..)
   ) where
 
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 
+import Control.Exception (handle)
 import Control.Foldl (Fold (Fold))
 import Data.List (nub)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
+import Options (ImageFormat (..))
 import Pom.Properties (readProperties)
 import Prelude hiding (FilePath)
-import Turtle (FilePath, Line, Shell, empty, fold, format, fp, fromText,
-               inshell, lineToText, repr, select, shells, testfile, textToLine)
+import Turtle (ExitCode, FilePath, Line, Shell, empty, exit, export, fold,
+               format, fp, fromText, inshell, lineToText, repr, select, shells,
+               testfile, textToLine)
 
 analyzeProperties :: [ParentChain] -> IO ()
 analyzeProperties =
@@ -45,7 +47,7 @@ instance Show GAV where
 
 toPomPath :: GAV -> FilePath
 toPomPath (GAV g a v) =
-    fromText $ Text.intercalate "/" ["/home/jhrcek/.m2/repository", Text.replace "." "/"  g, a, v, a <> "-" <> v <> ".pom"]
+    fromText $ Text.intercalate "/" ["/home/hrk/.m2/repository", Text.replace "." "/"  g, a, v, a <> "-" <> v <> ".pom"]
 {-
 List of GAVs starting from module's own GAV, followed by list of its parents ending with the root
 Extracted from per-module output of `mvn dependency:display-ancestors` which looks like this:
@@ -59,10 +61,6 @@ Extracted from per-module output of `mvn dependency:display-ancestors` which loo
 -}
 newtype ParentChain = ParentChain [GAV] deriving Show
 
-data ImageFormat
-    = PNG
-    | SVG
-
 showHierarchy :: ImageFormat -> [ParentChain]  -> IO ()
 showHierarchy imageFormat parentChains = do
     shells ("dot -T" <> extension <> " -o hierarchy." <> extension) $ select dotLines
@@ -75,7 +73,7 @@ showHierarchy imageFormat parentChains = do
 
 toDotSource :: [ParentChain] -> [Line]
 toDotSource parentChains =
-    "digraph G {" : "rankdir=RL" : edgeLines <> ["}"]
+    "digraph G {" : "rankdir=RL" : "node[shape=box]" : edgeLines <> ["}"]
   where
     edgeLines :: [Line]
     edgeLines =
@@ -94,11 +92,18 @@ toDotSource parentChains =
         nub $ concatMap (\(ParentChain gavs) -> overlappingPairs gavs) parentChains
 
 getParentChains :: IO [ParentChain]
-getParentChains =
+getParentChains = handle errorHandler $ do
+    Text.putStrLn $ "Running " <> mvnDisplayAncestors
+    export "MAVEN_OPTS" "-Xmx8G" -- Give more memory to maven to avoid "GC overhead limit exceeded" for huge projects
     fold command foldChains
+
   where
+    mvnDisplayAncestors = "mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:display-ancestors"
+
     command :: Shell Line
-    command = inshell "mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:display-ancestors | grep -B5 --group-separator=MY_GROUP_SEPARATOR 'Ancestor POMs:'" empty
+    command =
+        inshell "grep -B5 --group-separator=MY_GROUP_SEPARATOR 'Ancestor POMs:'"
+        $ inshell mvnDisplayAncestors empty
 
     foldChains :: Fold Line [ParentChain]
     foldChains = Fold step initial extract
@@ -115,6 +120,15 @@ getParentChains =
 
     extract :: ([ParentChain], [Line]) -> [ParentChain]
     extract = fst
+
+    errorHandler :: ExitCode -> IO a
+    errorHandler exitCode = do
+        Text.putStrLn $ Text.unlines
+            [ "ERROR: The output from maven didn't contain any info about ancestor POMs"
+            , "       Try running the above maven command directly to see what's wrong"
+            ]
+        exit exitCode
+
 
 -- [1,2,3,4,5] -> [(1,2), (2,3), (3,4), (4,5)]
 overlappingPairs :: [a] -> [(a,a)]
