@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Map as Map
 import qualified Options
 import qualified Pom
 
@@ -9,5 +10,6 @@ main = do
     let imageFormat = Options.imageFormat opts
         userHome = Options.userHome opts
     parentChains <- Pom.getParentChains
-    Pom.analyzeProperties userHome parentChains
+    gav2props <- Pom.loadProperties userHome parentChains
+    mapM_ print $ Map.toList gav2props
     Pom.showHierarchy imageFormat parentChains

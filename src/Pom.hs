@@ -1,46 +1,54 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Pom
-  ( analyzeProperties
+  ( loadProperties
   , getParentChains
   , showHierarchy
   , GAV(..)
   , ParentChain(..)
   ) where
 
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 
 import Control.Exception (handle)
 import Control.Foldl (Fold (Fold))
+import Control.Monad (foldM)
 import Data.List (nub)
+import Data.Map (Map)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Options (ImageFormat (..))
-import Pom.Properties (readProperties)
+import Pom.Properties (Properties, readProperties)
 import Prelude hiding (FilePath)
 import Turtle (ExitCode, FilePath, Line, Shell, empty, exit, export, fold,
                format, fp, fromText, inshell, lineToText, repr, select, shells,
-               testfile, textToLine, (</>))
+               testfile, textToLine, (%), (</>))
 
-analyzeProperties :: FilePath -> [ParentChain] -> IO ()
-analyzeProperties userHome parentChain =
-  mapM_ (\gav -> do
-          let pomPath = toPomPath userHome gav
-          Text.putStrLn $ "---------- " <> format fp pomPath
-          exists <- testfile pomPath
-          if exists
-              then readProperties pomPath >>= mapM_ (\(k,v) -> Text.putStrLn $ k <> "=" <> v)
-              else putStrLn "pom does not exist"
-        )
-      . nub
-      $ concatMap (\(ParentChain gavs) -> gavs) parentChain
+
+loadProperties :: FilePath -> [ParentChain] -> IO (Map GAV Properties)
+loadProperties userHome parentChains =
+    foldM loadProps Map.empty uniqueGavs
+  where
+    uniqueGavs :: [GAV]
+    uniqueGavs = nub $ concatMap (\(ParentChain gavs) -> gavs) parentChains
+
+    loadProps :: Map GAV Properties -> GAV -> IO (Map GAV Properties)
+    loadProps m gav = do
+        let pomPath = toPomPath userHome gav
+        exists <- testfile pomPath
+        if exists
+            then (\props -> Map.insert gav props m) <$> readProperties pomPath
+            else do
+              Text.putStrLn $ format ("WARNING: "%fp%" does not exist. Did you mvn install the repo?") pomPath
+              return m
 
 data GAV = GAV
    { gavGroupId    :: Text
    , gavArtifactId :: Text
    , gavVersion    :: Text
-   } deriving Eq
+   } deriving (Eq, Ord)
 
 instance Show GAV where
   show (GAV g a v) = Text.unpack $ Text.intercalate ":" [g,a,v]
@@ -128,7 +136,6 @@ getParentChains = handle errorHandler $ do
             , "       Try running the above maven command directly to see what's wrong"
             ]
         exit exitCode
-
 
 -- [1,2,3,4,5] -> [(1,2), (2,3), (3,4), (4,5)]
 overlappingPairs :: [a] -> [(a,a)]

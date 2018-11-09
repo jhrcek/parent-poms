@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types        #-}
 
-module Pom.Properties (readProperties) where
+module Pom.Properties (readProperties, Properties) where
 
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Text.XML as XML
 
+import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Prelude hiding (FilePath)
@@ -14,16 +16,18 @@ import Text.XML.Lens (Traversal', el, localName, nodes, root, to, (./), (^.),
                       (^..), (^?), _Content, _Element, _head)
 import Turtle (FilePath, format, fp)
 
+type Properties = Map Text Text
+
 {-| Read all property-value pairs from given pom.xml -}
-readProperties :: FilePath -> IO [(Text, Text)]
+readProperties :: FilePath -> IO Properties
 readProperties pomFile =
     parseProps <$> XML.readFile def ghcIoPomFile
   where
     ghcIoPomFile = Text.unpack $ format fp pomFile
 
-parseProps :: Document -> [(Text, Text)]
+parseProps :: Document -> Properties
 parseProps doc =
-    doc ^.. root
+    Map.fromList $ doc ^.. root
     . pomEl "project" ./ pomEl "properties"
     . nodes . traverse . _Element
     . to getPropertyNameAndValue
