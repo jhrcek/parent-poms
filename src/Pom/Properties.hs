@@ -1,11 +1,14 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE Rank2Types        #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE Rank2Types                 #-}
 
-module Pom.Properties (readProperties, Properties) where
-
-import qualified Data.Map as Map
-import qualified Data.Text as Text
-import qualified Text.XML as XML
+module Pom.Properties
+    ( Properties
+    , PropKey(PK)
+    , PropValue(PV)
+    , readProperties
+    ) where
 
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
@@ -16,7 +19,13 @@ import Text.XML.Lens (Traversal', el, localName, nodes, root, to, (./), (^.),
                       (^..), (^?), _Content, _Element, _head)
 import Turtle (FilePath, format, fp)
 
-type Properties = Map Text Text
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Text.XML as XML
+
+type Properties = Map PropKey PropValue
+newtype PropKey = PK Text deriving newtype (Eq, Ord, Show)
+newtype PropValue = PV Text deriving newtype (Eq, Ord, Show)
 
 {-| Read all property-value pairs from given pom.xml -}
 readProperties :: FilePath -> IO Properties
@@ -39,8 +48,8 @@ pomEl elName = el $ Name
   , namePrefix = Nothing
   }
 
-getPropertyNameAndValue :: Element -> (Text, Text)
-getPropertyNameAndValue e = (propName, propValue)
+getPropertyNameAndValue :: Element -> (PropKey, PropValue)
+getPropertyNameAndValue e = (PK key, PV val)
   where
-    propName =  e ^. localName
-    propValue = fromMaybe "" $ e ^? nodes . _head . _Content
+    key =  e ^. localName
+    val = fromMaybe "" $ e ^? nodes . _head . _Content
