@@ -2,10 +2,8 @@
 
 module Options
     ( ImageFormat(..)
-    , Options
-    , imageFormat
+    , Options(..)
     , parse
-    , userHome
     ) where
 
 import Control.Applicative ((<|>))

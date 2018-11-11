@@ -29,12 +29,12 @@ ghc-options:
 - -Wredundant-constraints
 
 library:
-  source-dirs: src
+  source-dirs:       src
 
 executables:
   parent-poms:
-    main:                Main.hs
-    source-dirs:         app
+    main:            Main.hs
+    source-dirs:     app
     ghc-options:
     - -threaded
     - -rtsopts
@@ -46,8 +46,8 @@ executables:
 
 tests:
   parent-poms-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main:            Spec.hs
+    source-dirs:     test
     ghc-options:
     - -threaded
     - -rtsopts

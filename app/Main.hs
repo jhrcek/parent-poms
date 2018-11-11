@@ -2,20 +2,22 @@ module Main where
 
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text
-import qualified Options as Opts
-import qualified Pom
+import qualified Maven.PomAncestors as Mvn
+import Options (Options (..))
+import qualified Options
+import qualified Pom.Graphviz as Graphviz
+import qualified Pom.Properties as Props
 import qualified Pom.PropOverrides as Override
 
 main :: IO ()
 main = do
-    opts <- Opts.parse
-    let imageFormat = Opts.imageFormat opts
-        userHome = Opts.userHome opts
-    parentChains <- Pom.getParentChains
-    gav2props <- Pom.loadProperties userHome parentChains
+    (Options usrHome imgFormat) <- Options.parse
+    ancestorChains <- Mvn.getAncestorChains
+    gav2props <- Props.loadProperties usrHome ancestorChains
 
-    let uselessOverrides = Set.filter Override.isUseless $
-            foldMap (Override.getOverrides gav2props) parentChains
+    let allOverrides = foldMap (Override.getOverrides gav2props) ancestorChains
+        uselessOverrides = Set.filter Override.isUseless allOverrides
+
     mapM_ (Text.putStrLn . Override.formatOverride) uselessOverrides
 
-    Pom.showHierarchy imageFormat parentChains
+    Graphviz.showHierarchy imgFormat ancestorChains

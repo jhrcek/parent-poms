@@ -11,7 +11,7 @@ module Pom.PropOverrides
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
-import Pom (GAV (..), ParentChain (..))
+import Maven.Types (AncestorChain (..), GAV (..))
 import Pom.Properties (PropKey (PK), PropValue (PV), Properties)
 import Turtle.Format (format, s, (%))
 
@@ -30,12 +30,12 @@ isUseless :: PropOverride -> Bool
 isUseless o = ancestorVal o == val o
 
 {-|
-Sweep the ParentChain from the root module towars children module.
+Sweep the AncestorChain from the root module towars children module.
 For each new module encountered update the map of effective properties `Map PropKey (GAV, PropValue)`.
 This map remembers for each PropKey in which GAV that prop value was first defined (or last overridden) and the current value.
 -}
-getOverrides :: Map GAV Properties -> ParentChain -> Set PropOverride
-getOverrides gavProps (ParentChain gavs) =
+getOverrides :: Map GAV Properties -> AncestorChain -> Set PropOverride
+getOverrides gavProps (AncestorChain gavs) =
     fst $ foldr collectOverrides (Set.empty, Map.empty) gavs
   where
     collectOverrides

@@ -7,25 +7,49 @@ module Pom.Properties
     ( Properties
     , PropKey(PK)
     , PropValue(PV)
-    , readProperties
+    , loadProperties
     ) where
+
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
+import qualified Text.XML as XML
 
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import Maven.Types (GAV(GAV), AncestorChain(AncestorChain))
+import Data.List (nub)
 import Prelude hiding (FilePath)
 import Text.XML (Document, Element, Name (..), def)
 import Text.XML.Lens (Traversal', el, localName, nodes, root, to, (./), (^.),
                       (^..), (^?), _Content, _Element, _head)
-import Turtle (FilePath, format, fp)
-
-import qualified Data.Map as Map
-import qualified Data.Text as Text
-import qualified Text.XML as XML
+import Turtle (FilePath, format, fp, (%), testfile, fromText, (</>))
 
 type Properties = Map PropKey PropValue
 newtype PropKey = PK Text deriving newtype (Eq, Ord, Show)
 newtype PropValue = PV Text deriving newtype (Eq, Ord, Show)
+
+loadProperties :: FilePath -> [AncestorChain] -> IO (Map GAV Properties)
+loadProperties userHome ancestorChains =
+    foldMap loadProps uniqueGavs
+  where
+    uniqueGavs :: [GAV]
+    uniqueGavs = nub $ concatMap (\(AncestorChain gavs) -> gavs) ancestorChains
+
+    loadProps :: GAV -> IO (Map GAV Properties)
+    loadProps gav = do
+        let pomPath = toPomPath userHome gav
+        exists <- testfile pomPath
+        if exists
+            then Map.singleton gav <$> readProperties pomPath
+            else do
+              Text.putStrLn $ format ("WARNING: "%fp%" does not exist. Did you mvn install the repo?") pomPath
+              return Map.empty
+
+toPomPath :: FilePath -> GAV -> FilePath
+toPomPath userHome (GAV g a v) =
+    userHome </> fromText (Text.intercalate "/" [".m2/repository", Text.replace "." "/"  g, a, v, a <> "-" <> v <> ".pom"])
 
 {-| Read all property-value pairs from given pom.xml -}
 readProperties :: FilePath -> IO Properties
