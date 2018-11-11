@@ -39,7 +39,7 @@ parseProps doc =
     Map.fromList $ doc ^.. root
     . pomEl "project" ./ pomEl "properties"
     . nodes . traverse . _Element
-    . to getPropertyNameAndValue
+    . to getPropertyKeyAndValue
 
 pomEl :: Text -> Traversal' Element Element
 pomEl elName = el $ Name
@@ -48,8 +48,8 @@ pomEl elName = el $ Name
   , namePrefix = Nothing
   }
 
-getPropertyNameAndValue :: Element -> (PropKey, PropValue)
-getPropertyNameAndValue e = (PK key, PV val)
+getPropertyKeyAndValue :: Element -> (PropKey, PropValue)
+getPropertyKeyAndValue e = (PK key, PV val)
   where
     key =  e ^. localName
     val = fromMaybe "" $ e ^? nodes . _head . _Content

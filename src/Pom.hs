@@ -3,22 +3,25 @@
 module Pom
   ( loadProperties
   , getParentChains
+  , buildForest
   , showHierarchy
   , GAV(..)
   , ParentChain(..)
   ) where
 
+import qualified Data.Graph as Graph
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 
 import Control.Exception (handle)
 import Control.Foldl (Fold (Fold))
-import Control.Monad (foldM)
-import Data.List (nub)
-import Data.Map (Map)
+import Data.Map (Map, (!))
 import Data.Maybe (mapMaybe)
+import Data.Set (Set)
 import Data.Text (Text)
+import Data.Tree (Forest)
 import Options (ImageFormat (..))
 import Pom.Properties (Properties, readProperties)
 import Prelude hiding (FilePath)
@@ -27,22 +30,19 @@ import Turtle (ExitCode, FilePath, Line, Shell, empty, exit, export, fold,
                testfile, textToLine, (%), (</>))
 
 
-loadProperties :: FilePath -> [ParentChain] -> IO (Map GAV Properties)
-loadProperties userHome parentChains =
-    foldM loadProps Map.empty uniqueGavs
+loadProperties :: FilePath -> Forest GAV -> IO (Map GAV Properties)
+loadProperties userHome =
+    foldMap (foldMap loadProps)
   where
-    uniqueGavs :: [GAV]
-    uniqueGavs = nub $ concatMap (\(ParentChain gavs) -> gavs) parentChains
-
-    loadProps :: Map GAV Properties -> GAV -> IO (Map GAV Properties)
-    loadProps m gav = do
+    loadProps :: GAV -> IO (Map GAV Properties)
+    loadProps gav = do
         let pomPath = toPomPath userHome gav
         exists <- testfile pomPath
         if exists
-            then (\props -> Map.insert gav props m) <$> readProperties pomPath
+            then Map.singleton gav <$> readProperties pomPath
             else do
               Text.putStrLn $ format ("WARNING: "%fp%" does not exist. Did you mvn install the repo?") pomPath
-              return m
+              return Map.empty
 
 data GAV = GAV
    { gavGroupId    :: Text
@@ -85,7 +85,7 @@ toDotSource parentChains =
   where
     edgeLines :: [Line]
     edgeLines =
-        mapMaybe mkEdgeWithGavs moduleParentPairs
+        mapMaybe mkEdgeWithGavs $ Set.toList moduleParentPairs
 
     -- mkEdgeWithArtifactIds :: (GAV, GAV) -> Maybe Line
     -- mkEdgeWithArtifactIds (GAV _ childArtId _, GAV _ parentArtId _) =
@@ -95,16 +95,15 @@ toDotSource parentChains =
     mkEdgeWithGavs (child, parent) =
         textToLine . Text.pack $ show (show child) <> " -> " <> show (show parent)
 
-    moduleParentPairs :: [(GAV, GAV)] -- Name of module paired with it's parent module
+    moduleParentPairs :: Set (GAV, GAV) -- Name of module paired with it's parent module
     moduleParentPairs =
-        nub $ concatMap (\(ParentChain gavs) -> overlappingPairs gavs) parentChains
+        foldMap (\(ParentChain gavs) -> Set.fromList $ overlappingPairs gavs) parentChains
 
 getParentChains :: IO [ParentChain]
 getParentChains = handle errorHandler $ do
     Text.putStrLn $ "Running " <> mvnDisplayAncestors
     export "MAVEN_OPTS" "-Xmx8G" -- Give more memory to maven to avoid "GC overhead limit exceeded" for huge projects
     fold command foldChains
-
   where
     mvnDisplayAncestors = "mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:display-ancestors"
 
@@ -136,6 +135,34 @@ getParentChains = handle errorHandler $ do
             , "       Try running the above maven command directly to see what's wrong"
             ]
         exit exitCode
+
+buildForest :: [ParentChain] -> Forest GAV
+buildForest parentChains =
+    fmap (vertex2gav!) <$> Graph.dfs pomHierarchyGraph roots
+  where
+    allGavs :: [GAV]
+    allGavs = Set.toList $ foldMap
+        (\(ParentChain gavs) -> Set.fromList gavs)
+        parentChains
+
+    roots :: [Graph.Vertex]
+    roots = Set.toList $ foldMap
+        (\(ParentChain gavs) -> Set.singleton $ gav2vertex ! last gavs)
+        parentChains
+
+    edges :: [Graph.Edge]
+    edges = Set.toList $ foldMap
+        (\(ParentChain gavs) -> Set.fromList . overlappingPairs . reverse $ fmap (gav2vertex!) gavs)
+        parentChains
+
+    gav2vertex :: Map GAV Graph.Vertex
+    gav2vertex = Map.fromList $ zip allGavs [1..]
+
+    vertex2gav :: Map Graph.Vertex GAV
+    vertex2gav = Map.fromList $ zip [1..] allGavs
+
+    pomHierarchyGraph :: Graph.Graph
+    pomHierarchyGraph = Graph.buildG (1, length allGavs) edges
 
 -- [1,2,3,4,5] -> [(1,2), (2,3), (3,4), (4,5)]
 overlappingPairs :: [a] -> [(a,a)]
