@@ -3,6 +3,7 @@
 module Options
     ( ImageFormat(..)
     , Options(..)
+    , NodeFormat (..)
     , parse
     ) where
 
@@ -14,6 +15,7 @@ import Turtle.Options (Parser, optRead, options)
 data Options = Options
     { userHome    :: FilePath
     , imageFormat :: ImageFormat
+    , nodeFormat  :: NodeFormat
     -- TODO maven profiles to enable when running maven command
     -- TODO Xmx for maven
     }
@@ -30,9 +32,20 @@ parse = do
 
 parser :: FilePath -> Parser Options
 parser homeDir =
-    Options homeDir <$> imageFormatParser
+    Options homeDir <$> imageFormatParser <*> nodeFormatParser
 
 imageFormatParser :: Parser ImageFormat
 imageFormatParser =
     optRead "format" 'f' "Output format of parent hierachy image. Supported values: PNG (Default), SVG"
     <|> pure PNG
+
+data NodeFormat
+    = ArtifactId
+    | Gav
+    | GavAndProperties
+    deriving Read
+
+nodeFormatParser :: Parser NodeFormat
+nodeFormatParser =
+    optRead "node" 'n' "What information will be rendered in the diagram nodes: ArtifactId, Gav (Default), GavAndProperties"
+    <|> pure Gav

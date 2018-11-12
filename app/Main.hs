@@ -11,13 +11,13 @@ import qualified Pom.PropOverrides as Override
 
 main :: IO ()
 main = do
-    (Options usrHome imgFormat) <- Options.parse
+    (Options userHome_ imageFormat_ nodeFormat_) <- Options.parse
     ancestorChains <- Mvn.getAncestorChains
-    gav2props <- Props.loadProperties usrHome ancestorChains
+    gav2props <- Props.loadProperties userHome_ ancestorChains
 
     let allOverrides = foldMap (Override.getOverrides gav2props) ancestorChains
         uselessOverrides = Set.filter Override.isUseless allOverrides
 
     mapM_ (Text.putStrLn . Override.formatOverride) uselessOverrides
 
-    Graphviz.showHierarchy imgFormat ancestorChains
+    Graphviz.showHierarchy imageFormat_ nodeFormat_ ancestorChains gav2props
