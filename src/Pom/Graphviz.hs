@@ -1,16 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Pom.Graphviz (showHierarchy) where
 
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Data.List (nub)
 import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Maven.Types (AncestorChain (AncestorChain), GAV (GAV))
 import Options (ImageFormat (..), NodeFormat (..))
-import Pom.Properties
+import Pom.Properties (PropKey (PK), PropValue (PV), Properties (..),
+                       propsDeclared, propsUsed)
 import Turtle (Line, empty, select, shells, textToLine)
 
 showHierarchy :: ImageFormat -> NodeFormat -> [AncestorChain] -> Map GAV Properties -> IO ()
@@ -48,9 +50,17 @@ type NodeRenderer = GAV -> Text
 
 gavAndPropertiesRendered :: Map GAV Properties -> NodeRenderer
 gavAndPropertiesRendered gav2props gav@(GAV g a v) =
-    quote $ Text.unlines (Text.intercalate ":" [g,a,v] : propLines)
+    quote $ Text.unlines (theGav : declaredPropsLines <> usedPropsLines)
   where
-    propLines = fmap (\(PK key, PV val) -> key <> "=" <> val) . Map.toList $ Map.findWithDefault Map.empty gav gav2props
+    theGav = Text.intercalate ":" [g,a,v]
+    propertiesForGav = Map.findWithDefault mempty gav gav2props
+    declaredProps = fmap (\(PK key, PV val) -> key <> "=" <> val) . Map.toList $ propsDeclared propertiesForGav
+    usedProps =  fmap (\(PK key) -> key) . Set.toList $ propsUsed propertiesForGav
+    declaredPropsLines = addHeadingIfNonempty "-- Declared Properties ---" declaredProps
+    usedPropsLines = addHeadingIfNonempty  "--- Used Properties ---" usedProps
+    addHeadingIfNonempty heading xs = case xs of
+        [] -> []
+        _  -> heading : xs
 
 fullGavRenderer :: NodeRenderer
 fullGavRenderer (GAV g a v) =

@@ -12,7 +12,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Maven.Types (AncestorChain (..), GAV (..))
-import Pom.Properties (PropKey (PK), PropValue (PV), Properties)
+import Pom.Properties (PropKey (PK), PropValue (PV), Properties, propsDeclared)
 import Turtle.Format (format, s, (%))
 
 import qualified Data.Map as Map
@@ -43,7 +43,7 @@ getOverrides gavProps (AncestorChain gavs) =
         -> (Set PropOverride, Map PropKey (GAV, PropValue))
         -> (Set PropOverride, Map PropKey (GAV, PropValue))
     collectOverrides gav' (overrides, effectiveProps) =
-        case Map.lookup gav' gavProps of
+        case propsDeclared <$> Map.lookup gav' gavProps of
             Nothing -> (overrides, effectiveProps) -- Nothing => The pom.xml corresponding to the GAV wasn't present in local repo
             Just props ->
                 ( Set.union newOverrides overrides
