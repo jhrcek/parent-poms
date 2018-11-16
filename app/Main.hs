@@ -4,11 +4,15 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text
 import qualified Maven.PomAncestors as Mvn
-import Options (Options (..))
 import qualified Options
 import qualified Pom.Graphviz as Graphviz
 import qualified Pom.Properties as Props
 import qualified Pom.PropOverrides as Override
+
+import Data.List (sortOn)
+import Data.Set (Set)
+import Options (Options (..))
+import Pom.PropOverrides (PropOverride)
 
 main :: IO ()
 main = do
@@ -24,10 +28,14 @@ main = do
 
     let allOverrides = foldMap (Override.getOverrides gav2props) ancestorChains
     putStrLn "===== All overrides ====="
-    mapM_ (Text.putStrLn . Override.formatOverride) allOverrides
+    printOverrides allOverrides
 
     let uselessOverrides = Set.filter Override.isUseless allOverrides
     putStrLn "===== Useles overrides ====="
-    mapM_ (Text.putStrLn . Override.formatOverride) uselessOverrides
+    printOverrides uselessOverrides
 
     Graphviz.showHierarchy imageFormat_ nodeFormat_ ancestorChains gav2props
+
+printOverrides :: Set PropOverride -> IO ()
+printOverrides =
+    mapM_ (Text.putStrLn . Override.formatOverride) . sortOn Override.gav . Set.toList
