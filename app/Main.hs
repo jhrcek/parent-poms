@@ -2,6 +2,7 @@ module Main where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Maven.PomAncestors as Mvn
 import qualified Options
@@ -27,15 +28,18 @@ main = do
     mapM_ print unused
 
     let allOverrides = foldMap (Override.getOverrides gav2props) ancestorChains
-    putStrLn "===== All overrides ====="
-    printOverrides allOverrides
+    saveToFile "all-overrides.txt" allOverrides
 
     let uselessOverrides = Set.filter Override.isUseless allOverrides
-    putStrLn "===== Useles overrides ====="
-    printOverrides uselessOverrides
+    saveToFile "useless-overrides.txt" uselessOverrides
 
     Graphviz.showHierarchy imageFormat_ nodeFormat_ ancestorChains gav2props
 
-printOverrides :: Set PropOverride -> IO ()
-printOverrides =
-    mapM_ (Text.putStrLn . Override.formatOverride) . sortOn Override.gav . Set.toList
+
+saveToFile :: String -> Set PropOverride -> IO ()
+saveToFile file =
+    Text.writeFile file
+    . Text.unlines
+    . fmap Override.formatOverride
+    . sortOn Override.gav
+    . Set.toList
