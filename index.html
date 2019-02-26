@@ -13,6 +13,7 @@
   <ul>
     <li><a href="all-overrides.txt">all overrides</a> - all cases of pom.xml file overriding property in one of its ancestor poms </li>
     <li><a href="useless-overrides.txt">useless overrides</a> - all cases of pom.xml overriding property to the SAME VALUE as one of its parent poms</li>
+    <li><a href="unused-properties.txt">unused properties</a> - all properties x that are declared in &lt;properties&gt;, but there's no corresponding ${x} found</li>
     <li><a href="parent-pom-hierarchy-gavs.svg">parent pom hierarchy (GAVs only)</a></li>
     <li><a href="parent-pom-hierarchy-props.svg">parent pom hierarchy (with properties and property usages)</a></li>
   </ul>
@@ -22,7 +23,7 @@
     <li>x=y is considered declared property in pom with GAV a:b:c when there is &lt;properties&gt;...&lt;x&gt;y&lt;/x&gt;...&lt;/properties&gt; in that pom</li>
     <li>x is considered used property, when there is a substring "${x}" anywhere in the pom</li>
   </ul>
-  <p>This report was generated on 21th November 2018 by <a href="https://github.com/jhrcek/parent-poms">parent-poms</a> from <a href="https://github.com/jhrcek/kiegroup-all">kiegroup-all</a></p>
+  <p>This report was generated on 26th February 2019 by <a href="https://github.com/jhrcek/parent-poms">parent-poms</a> from <a href="https://github.com/jhrcek/kiegroup-all">kiegroup-all</a></p>
 </body>
 
 </html>
