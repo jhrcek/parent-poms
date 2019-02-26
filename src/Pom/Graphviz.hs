@@ -1,33 +1,40 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Pom.Graphviz (showHierarchy) where
+module Pom.Graphviz (generateHierarchyImage) where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.Text as Text
+import qualified Data.Map       as Map
+import qualified Data.Set       as Set
+import qualified Data.Text      as Text
 
-import Data.List (nub)
-import Data.Map (Map)
-import Data.Maybe (mapMaybe)
-import Data.Text (Text)
-import Maven.Types (AncestorChain (AncestorChain), GAV (GAV))
-import Options (ImageFormat (..), NodeFormat (..))
-import Pom.Properties (PropKey (PK), PropValue (PV), Properties (..),
-                       propsDeclared, propsUsed)
-import Turtle (Line, empty, select, shells, textToLine)
+import           Data.List      (nub)
+import           Data.Map       (Map)
+import           Data.Maybe     (mapMaybe)
+import           Data.Text      (Text)
+import           Maven.Types    (AncestorChain (AncestorChain), GAV (GAV))
+import           Options        (ImageFormat (..), NodeFormat (..))
+import           Pom.Properties (PropKey (PK), PropValue (PV), Properties (..),
+                                 propsDeclared, propsUsed)
+import           Turtle         (Line, format, fp, printf, procs, s, select,
+                                 textToLine, (%), (<.>))
 
-showHierarchy :: ImageFormat -> NodeFormat -> [AncestorChain] -> Map GAV Properties -> IO ()
-showHierarchy imageFormat nodeFormat ancestorChains gav2Props = do
-    shells ("dot -T" <> extension <> " -o hierarchy." <> extension) $ select dotLines
-    shells (viewer <> " hierarchy." <> extension) empty
+generateHierarchyImage :: ImageFormat -> NodeFormat -> [AncestorChain] -> Map GAV Properties -> IO ()
+generateHierarchyImage imageFormat nodeFormat ancestorChains gav2Props = do
+    procs "dot" ["-T", extension, "-o", outputFile] $ select dotLines
+    printf ("Generated image "%s%"\n") outputFile
   where
     dotLines = toDotSource nodeRenderer ancestorChains
-    (extension, viewer) = case imageFormat of
-        PNG -> ("png", "shotwell")
-        SVG -> ("svg", "google-chrome")
-    nodeRenderer = case nodeFormat of
-        ArtifactId       -> artifactIdRenderer
-        Gav              -> fullGavRenderer
-        GavAndProperties -> gavAndPropertiesRendered gav2Props
+    extension = getExtension imageFormat
+    outputFile = format fp $ outputImageName <.> extension
+
+    (nodeRenderer, outputImageName) = case nodeFormat of
+        ArtifactId       -> (artifactIdRenderer, "parent-pom-hierarchy-artifacts")
+        Gav              -> (fullGavRenderer, "parent-pom-hierarchy-gavs")
+        GavAndProperties -> (gavAndPropertiesRendered gav2Props, "parent-pom-hierarchy-props")
+
+getExtension :: ImageFormat -> Text
+getExtension = \case
+    PNG -> "png"
+    SVG -> "svg"
 
 
 toDotSource :: NodeRenderer -> [AncestorChain] -> [Line]
@@ -56,7 +63,7 @@ gavAndPropertiesRendered gav2props gav@(GAV g a v) =
     propertiesForGav = Map.findWithDefault mempty gav gav2props
     declaredProps = fmap (\(PK key, PV val) -> key <> "=" <> val) . Map.toList $ propsDeclared propertiesForGav
     usedProps =  fmap (\(PK key) -> key) . Set.toList $ propsUsed propertiesForGav
-    declaredPropsLines = addHeadingIfNonempty "-- Declared Properties ---" declaredProps
+    declaredPropsLines = addHeadingIfNonempty "--- Declared Properties ---" declaredProps
     usedPropsLines = addHeadingIfNonempty  "--- Used Properties ---" usedProps
     addHeadingIfNonempty heading xs = case xs of
         [] -> []

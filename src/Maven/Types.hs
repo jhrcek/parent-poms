@@ -6,7 +6,7 @@ module Maven.Types
 
 import qualified Data.Text as Text
 
-import Data.Text (Text)
+import           Data.Text (Text)
 
 data GAV = GAV
    { gavGroupId    :: Text

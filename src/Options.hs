@@ -36,8 +36,8 @@ parser homeDir =
 
 imageFormatParser :: Parser ImageFormat
 imageFormatParser =
-    optRead "format" 'f' "Output format of parent hierachy image. Supported values: PNG (Default), SVG"
-    <|> pure PNG
+    optRead "format" 'f' "Output format of parent hierachy image. Supported values: PNG, SVG (Default)"
+    <|> pure SVG
 
 data NodeFormat
     = ArtifactId
